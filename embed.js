@@ -1357,7 +1357,7 @@ var debug, snowflake, config, broker, ui, log, dbg, init, update, silenceNotific
   };
 
   window.onload = function() {
-    fetch(`./_locales/${getLang()}/messages.json`)
+    fetch(`https://cdn.jsdelivr.net/gh/JJ840/snowflake-unblocked@main/messages.json`)
     .then((res) => {
       if (!res.ok) { return; }
       return res.json();
