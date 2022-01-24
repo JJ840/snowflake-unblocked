@@ -178,7 +178,7 @@ class Config {
 Config.prototype.brokerUrl = 'snowflake-broker.freehaven.net';
 
 Config.prototype.relayAddr = {
-  host: 'snowflake.freehaven.net',
+  host: '37.218.242.151',
   port: '443'
 };
 
