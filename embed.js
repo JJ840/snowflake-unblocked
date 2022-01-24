@@ -220,7 +220,7 @@ Config.prototype.pcConfig = {
   ]
 };
 
-Config.PROBEURL = "https://snowflake-broker.torproject.net:8443/probe";
+Config.PROBEURL = "https://37.218.245.111/:8443/probe";
 /* global snowflake, log, dbg, Util, PeerConnection, Parse, WS */
 
 /*
