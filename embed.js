@@ -1072,7 +1072,7 @@ class WS {
   static makeWebsocket(addr, params) {
     var url, ws, wsProtocol;
     wsProtocol = this.WSS_ENABLED ? 'wss' : 'ws';
-    url = this.buildUrl(wsProtocol, addr.host, addr.port, '/', params);
+    url = this.buildUrl(wsProtocol, addr.host, addr.port, '', params);
     ws = new WebSocket(url);
     /*
     'User agents can use this as a hint for how to handle incoming binary data:
