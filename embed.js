@@ -175,11 +175,11 @@ class Config {
   }
 }
 
-Config.prototype.brokerUrl = 'snowflake-broker.freehaven.net';
+Config.prototype.brokerUrl = '37.218.245.111';
 
-Config.prototype.relayAddr = {
-  host: 'snowflake.freehaven.net',
-  port: '443'
+Config.prototype.relayAddr = {  
+  host: '192.81.135.242',
+  port: '9902'
 };
 
 // Original non-wss relay:
@@ -220,7 +220,7 @@ Config.prototype.pcConfig = {
   ]
 };
 
-Config.PROBEURL = "https://snowflake-broker.freehaven.net:8443/probe";
+Config.PROBEURL = "https://37.218.245.111:8443/probe";
 /* global snowflake, log, dbg, Util, Parse, WS */
 
 /*
