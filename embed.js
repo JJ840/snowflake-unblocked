@@ -175,10 +175,10 @@ class Config {
   }
 }
 
-Config.prototype.brokerUrl = '37.218.245.111';
+Config.prototype.brokerUrl = 'snowflake-broker.freehaven.net';
 
 Config.prototype.relayAddr = {
-  host: '37.218.242.151',
+  host: 'snowflake.freehaven.net',
   port: '443'
 };
 
@@ -220,8 +220,8 @@ Config.prototype.pcConfig = {
   ]
 };
 
-Config.PROBEURL = "https://37.218.245.111/:8443/probe";
-/* global snowflake, log, dbg, Util, PeerConnection, Parse, WS */
+Config.PROBEURL = "https://snowflake-broker.freehaven.net:8443/probe";
+/* global snowflake, log, dbg, Util, Parse, WS */
 
 /*
 Represents a single:
@@ -258,16 +258,7 @@ class ProxyPair {
 
   // Prepare a WebRTC PeerConnection and await for an SDP offer.
   begin() {
-    this.pc = new PeerConnection(this.pcConfig, {
-      optional: [
-        {
-          DtlsSrtpKeyAgreement: true
-        },
-        {
-          RtpDataChannels: false
-        }
-      ]
-    });
+    this.pc = new RTCPeerConnection(this.pcConfig);
     this.pc.onicecandidate = (evt) => {
       // Browser sends a null candidate once the ICE gathering completes.
       if (null === evt.candidate && this.pc.connectionState !== 'closed') {
@@ -487,7 +478,7 @@ ProxyPair.prototype.messageTimer = 0;
 ProxyPair.prototype.flush_timeout_id = null;
 
 ProxyPair.prototype.onCleanup = null;
-/* global log, dbg, DummyRateLimit, BucketRateLimit, SessionDescription, ProxyPair */
+/* global log, dbg, DummyRateLimit, BucketRateLimit, ProxyPair */
 
 /*
 A JavaScript WebRTC snowflake proxy
@@ -609,7 +600,7 @@ class Snowflake {
     try {
       offer = JSON.parse(desc);
       dbg('Received:\n\n' + offer.sdp + '\n');
-      sdp = new SessionDescription(offer);
+      sdp = new RTCSessionDescription(offer);
       if (pair.receiveWebRTCOffer(sdp)) {
         this.sendAnswer(pair);
         return true;
@@ -698,7 +689,7 @@ class UI {
 
 UI.prototype.active = false;
 /* exported Util, Params, DummyRateLimit */
-/* global PeerConnection, Config */
+/* global Config */
 
 /*
 A JavaScript WebRTC snowflake proxy
@@ -713,36 +704,38 @@ class Util {
   }
 
   static hasWebRTC() {
-    return typeof PeerConnection === 'function';
+    return typeof RTCPeerConnection === 'function';
   }
 
   static hasCookies() {
     return navigator.cookieEnabled;
   }
 
-  // returns a promise that fullfills to "restricted" if we
+  // returns a promise that resolves to "restricted" if we
   // fail to make a test connection to a known restricted
-  // NAT, "unrestricted" if the test connection fails, and
+  // NAT, "unrestricted" if the test connection succeeds, and
   // "unknown" if we fail to reach the probe test server
   static checkNATType(timeout) {
-    return new Promise((fulfill, reject) => {
+    let pc = new RTCPeerConnection({iceServers: [
+      {urls: 'stun:stun1.l.google.com:19302'}
+    ]});
+    let channel = pc.createDataChannel("NAT test");
+    return (new Promise((fulfill, reject) => {
       let open = false;
-      let pc = new PeerConnection({iceServers: [
-        {urls: 'stun:stun1.l.google.com:19302'}
-      ]});
-      let channel = pc.createDataChannel("NAT test");
       channel.onopen = function() {
         open = true;
         fulfill("unrestricted");
-        channel.close();
-        pc.close();
       };
       pc.onicecandidate = (evt) => {
         if (evt.candidate == null) {
           //ice gathering is finished
           Util.sendOffer(pc.localDescription)
           .then((answer) => {
-            setTimeout(() => {if(!open) fulfill("restricted");}, timeout);
+            setTimeout(() => {
+              if(!open) {
+                fulfill("restricted");
+              }
+            }, timeout);
             pc.setRemoteDescription(JSON.parse(answer));
           }).catch((e) => {
             console.log(e);
@@ -756,7 +749,10 @@ class Util {
         console.log(e);
         reject("Error creating offer for probetest");
       });
-    });
+    }).finally(() => {
+      channel.close();
+      pc.close();
+    }));
   }
 
   // Assumes getClientOffer happened, and a WebRTC SDP answer has been generated.
@@ -1072,7 +1068,7 @@ class WS {
   static makeWebsocket(addr, params) {
     var url, ws, wsProtocol;
     wsProtocol = this.WSS_ENABLED ? 'wss' : 'ws';
-    url = this.buildUrl(wsProtocol, addr.host, addr.port, '', params);
+    url = this.buildUrl(wsProtocol, addr.host, addr.port, '/', params);
     ws = new WebSocket(url);
     /*
     'User agents can use this as a hint for how to handle incoming binary data:
@@ -1124,18 +1120,11 @@ if (typeof module !== "undefined" && module !== null ? module.exports : void 0) 
   ({ URLSearchParams } = require('url'));
   if ((typeof TESTING === "undefined" || TESTING === null) || !TESTING) {
     webrtc = require('wrtc');
-    PeerConnection = webrtc.RTCPeerConnection;
-    IceCandidate = webrtc.RTCIceCandidate;
-    SessionDescription = webrtc.RTCSessionDescription;
+    RTCPeerConnection = webrtc.RTCPeerConnection;
+    RTCSessionDescription = webrtc.RTCSessionDescription;
     WebSocket = require('ws');
     ({ XMLHttpRequest } = require('xmlhttprequest'));
   }
-} else {
-  PeerConnection = window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection;
-  IceCandidate = window.RTCIceCandidate || window.mozRTCIceCandidate;
-  SessionDescription = window.RTCSessionDescription || window.mozRTCSessionDescription;
-  WebSocket = window.WebSocket;
-  XMLHttpRequest = window.XMLHttpRequest;
 }
 /* global Util, Params, Config, UI, Broker, Snowflake, Popup, Parse, availableLangs, WS */
 
@@ -1357,7 +1346,7 @@ var debug, snowflake, config, broker, ui, log, dbg, init, update, silenceNotific
   };
 
   window.onload = function() {
-    fetch(`https://cdn.jsdelivr.net/gh/JJ840/snowflake-unblocked@main/messages.json`)
+    fetch(`./_locales/${getLang()}/messages.json`)
     .then((res) => {
       if (!res.ok) { return; }
       return res.json();
